@@ -9,3 +9,4 @@ __pycache__/
 # Generated audio artifacts
 *.mp3
 *.wav
+*.txt
