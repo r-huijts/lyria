@@ -311,6 +311,7 @@ def generate_song(
     stream_event_count = 0
     audio_event_count = 0
     audio_base64_chars = 0
+    last_event_type = "connecting"
 
     desc_col = TextColumn(
         "{task.description}",
@@ -318,7 +319,7 @@ def generate_song(
     )
     detail_col = TextColumn(
         "[dim]{task.fields[detail]}[/dim]",
-        table_column=Column(min_width=28, no_wrap=True),
+        table_column=Column(min_width=40, no_wrap=True),
     )
     progress = Progress(
         SpinnerColumn(finished_text="[green]✓[/green]"),
@@ -378,12 +379,8 @@ def generate_song(
                         break
 
                     stream_event_count += 1
-                    progress.update(
-                        stream_task,
-                        description="[cyan]Processing stream[/cyan]",
-                        detail=f"{stream_event_count} events",
-                    )
-
+                    
+                    # Parse event to determine what's happening
                     try:
                         chunk = json.loads(data)
                     except json.JSONDecodeError:
@@ -397,6 +394,37 @@ def generate_song(
                     # Some providers may place audio on message instead of delta.
                     if not audio:
                         audio = choice.get("message", {}).get("audio", {})
+
+                    # Build human-readable status message with context
+                    status_msg = ""
+                    
+                    if audio.get("data"):
+                        # Audio data is arriving
+                        audio_len = len(audio["data"])
+                        status_msg = f"Receiving song chunk ({_fmt_bytes(audio_len * 3 // 4)})"
+                    elif delta.get("content"):
+                        # Lyrics are streaming
+                        content_preview = delta["content"][:40].strip()
+                        if len(delta["content"]) > 40:
+                            content_preview += "..."
+                        content_preview = content_preview.replace("\n", " ")
+                        status_msg = f'Receiving lyrics: "{content_preview}"'
+                    else:
+                        # Metadata/preparation phase - show progress with counter
+                        if stream_event_count == 1:
+                            status_msg = "Model ready, starting generation"
+                        elif stream_event_count < 10:
+                            status_msg = f"Initializing generation ({stream_event_count}/~10)"
+                        elif stream_event_count < 30:
+                            status_msg = f"Preparing song structure ({stream_event_count}/~30)"
+                        else:
+                            status_msg = f"Processing generation ({stream_event_count} events)"
+                    
+                    progress.update(
+                        stream_task,
+                        description="[cyan]Generating[/cyan]",
+                        detail=status_msg,
+                    )
 
                     audio_data = audio.get("data")
                     if audio_data:
