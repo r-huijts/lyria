@@ -1,24 +1,32 @@
 # Lyria Song Generator
 
-A Python CLI tool for generating songs with Google Lyria through Portkey/OpenRouter.
+A Python CLI tool for generating songs with Google Lyria 3 Pro through Portkey/OpenRouter.
 
-It supports both freeform prompting and a structured song-spec workflow, streams generation progress in a Rich terminal UI, saves audio to an `.mp3`, and saves lyrics/transcript to a matching `.txt` file.
+It supports freeform prompting, structured song specifications with guided fields, and advanced features like image-to-music generation, custom lyrics with section tags, timestamp-based structure control, and both MP3/WAV output formats.
 
 ## Features
 
-- Freeform mode for quick prompt-based generation
-- Structured mode with guided fields (`genre`, `mood`, `BPM`, `instrumentation`, etc.)
-- Prompt builder (`SongSpec` -> `build_lyria_prompt`) for better Lyria-ready prompts
-- Live stream progress with separate status for stream events and audio payload
-- Automatic output saving:
-  - audio: `your-file.mp3`
+- **Three input modes:**
+  - Freeform: single prompt string
+  - Structured: guided basic fields (genre, mood, BPM, vocals, instrumentation, etc.)
+  - Advanced: custom lyrics, timestamp control, image input, format selection
+- **Quick presets** for common use cases (full song, instrumental, custom lyrics)
+- **Image-to-music generation** - up to 10 images for visual inspiration
+- **Custom lyrics** with section tags (`[Verse]`, `[Chorus]`, `[Bridge]`)
+- **Timestamp-based structure** for precise timing control
+- **Instrumental-only mode** for background music
+- **Output format selection** - MP3 or WAV
+- **Live stream progress** with separate rows for stream events and audio payload
+- **Automatic dual-file output:**
+  - audio: `your-file.mp3` (or `.wav`)
   - lyrics/transcript: `your-file.txt`
-- `.env`-based API key loading (`PORTKEY_API_KEY`)
+- `.env`-based API key loading
 
 ## Requirements
 
 - Python 3.10+
-- A valid Portkey API key with access to the Lyria model
+- A valid Portkey API key with access to Lyria 3 Pro model
+- Image files (optional, for image-to-music generation)
 
 ## Setup
 
@@ -55,42 +63,55 @@ python lyria.py
 
 ### Interactive flow
 
-On launch, you can choose:
+On launch, choose:
 
-- `1` Freeform - type one prompt directly
-- `2` Structured - fill guided fields that are converted into a high-quality Lyria prompt
+- Quick presets: `p1`, `p2`, `p3`
+- Or modes: `1` (Freeform), `2` (Structured), `3` (Advanced)
 
-You'll also set an output file name (default: `song.mp3`).
+Then set output file name (default: `song.mp3`).
 
-Before generation starts, the tool prints:
+**Mode 1: Freeform**
+- Type one prompt directly
 
-- A prompt preview panel
-- A "Starting generation" line with target output paths for audio and lyrics
+**Mode 2: Structured**
+- Fill guided fields for genre, mood, BPM, vocals, instrumentation, etc.
+- Option for instrumental-only mode
+
+**Mode 3: Advanced**
+- All structured fields
+- Custom lyrics with section tags
+- Timestamp-based structure
+- Image input (up to 10 images)
+- Output format selection (MP3/WAV)
+
+Before generation starts, the tool displays:
+- Prompt preview panel
+- Starting generation line with output paths
 
 ## Output files
 
 If your output file is `song.mp3`, the tool writes:
 
 - `song.mp3` - generated audio
-- `song.txt` - lyrics/transcript text (when text is returned)
+- `song.txt` - lyrics/transcript text (when returned)
 
 ## Prompt building API
 
-The script includes these reusable pieces:
+The script includes reusable components:
 
 - `SongSpec` dataclass - structured prompt inputs
-- `build_lyria_prompt(spec: SongSpec) -> str` - builds a natural multi-line Lyria prompt
-- `generate_song_from_spec(spec: SongSpec, output_file: str = "song.mp3") -> str`
+- `build_lyria_prompt(spec: SongSpec) -> str` - builds natural Lyria prompt
+- `generate_song(prompt, output_file, output_format, image_paths)` - core generation
+- `generate_song_from_spec(spec: SongSpec, output_file) -> str` - convenience wrapper
 
-### Example (programmatic)
+### Example: Basic programmatic usage
 
 ```python
-from lyria import SongSpec, build_lyria_prompt, generate_song_from_spec
+from lyria import SongSpec, generate_song_from_spec
 
 spec = SongSpec(
     genre="cinematic",
-    subgenre="synth-pop",
-    mood="uplifting, emotional, expansive",
+    mood="uplifting, emotional",
     bpm=100,
     vocals="expressive female lead vocal",
     language="English",
@@ -99,20 +120,139 @@ spec = SongSpec(
     lyrical_theme="rebuilding after a storm and finding hope again",
 )
 
-prompt = build_lyria_prompt(spec)
-print(prompt)
-
 transcript = generate_song_from_spec(spec, output_file="cinematic-pop.mp3")
+```
+
+### Example: Custom lyrics
+
+```python
+spec = SongSpec(
+    genre="indie pop",
+    mood="dreamy, nostalgic",
+    custom_lyrics="""[Verse 1]
+Walking through the neon glow,
+city lights reflect below,
+
+[Chorus]
+We are the echoes in the night,
+burning brighter than the light,
+
+[Verse 2]
+Footsteps lost on empty streets,
+rhythms sync to heartbeats.""",
+)
+
+transcript = generate_song_from_spec(spec, output_file="echoes.mp3")
+```
+
+### Example: Timestamp-based structure
+
+```python
+spec = SongSpec(
+    genre="lo-fi hip hop",
+    instrumental_only=True,
+    timestamped_structure=[
+        {"start": "0:00", "end": "0:10", "description": "Intro: vinyl crackle and mellow chords"},
+        {"start": "0:10", "end": "0:40", "description": "Main beat: boom-bap drums and jazzy piano"},
+        {"start": "0:40", "end": "1:00", "description": "Outro: fade with piano melody"},
+    ],
+)
+
+transcript = generate_song_from_spec(spec, output_file="lofi-beat.mp3")
+```
+
+### Example: Image-to-music
+
+```python
+spec = SongSpec(
+    genre="ambient",
+    mood="atmospheric, cinematic",
+    instrumentation=["strings", "pads", "subtle percussion"],
+    image_paths=["sunset.jpg", "desert.png"],
+)
+
+transcript = generate_song_from_spec(spec, output_file="visual-ambient.mp3")
+```
+
+### Example: WAV output format
+
+```python
+spec = SongSpec(
+    genre="orchestral",
+    mood="epic, cinematic",
+    output_format="wav",
+)
+
+transcript = generate_song_from_spec(spec, output_file="epic-score.wav")
 ```
 
 ## Progress view
 
-During generation, progress rows show:
+During generation, two progress rows display:
 
-- stream status (event count)
-- audio status (chunks + approximate size)
+- **Stream status** - event count and elapsed time
+- **Audio status** - chunks received and approximate size
 
-When complete, both rows end with checkmarks, followed by saved file logs.
+When complete, both rows show green checkmarks, followed by saved file logs.
+
+## Advanced features
+
+### Instrumental-only mode
+
+Set `instrumental_only=True` to enforce no vocals:
+
+```python
+spec = SongSpec(
+    genre="ambient",
+    instrumental_only=True,
+    instrumentation=["piano", "strings"],
+)
+```
+
+### Custom lyrics with section tags
+
+Provide full lyrics with structure tags:
+
+```python
+spec = SongSpec(
+    genre="pop",
+    custom_lyrics="""[Intro]
+Piano melody...
+
+[Verse 1]
+First verse lyrics...
+
+[Chorus]
+Chorus lyrics...""",
+)
+```
+
+### Timestamp-based structure
+
+Control exact timing of song segments:
+
+```python
+spec = SongSpec(
+    timestamped_structure=[
+        {"start": "0:00", "end": "0:15", "description": "Intro: soft piano"},
+        {"start": "0:15", "end": "0:45", "description": "Verse: add vocals"},
+        {"start": "0:45", "end": "1:15", "description": "Chorus: full band"},
+    ],
+)
+```
+
+### Image input
+
+Provide up to 10 images for visual inspiration:
+
+```python
+spec = SongSpec(
+    genre="ambient",
+    image_paths=["sunset.jpg", "ocean.png", "mountains.webp"],
+)
+```
+
+Supported formats: JPEG, PNG, GIF, WebP
 
 ## Troubleshooting
 
@@ -124,8 +264,20 @@ When complete, both rows end with checkmarks, followed by saved file logs.
   - Error: `Unauthorized (401). Check PORTKEY_API_KEY in your .env file.`
   - Fix: verify key value and account/model access.
 
+- **Image not found**
+  - Error: `Image not found: path/to/file.jpg`
+  - Fix: verify image path is correct and file exists.
+
+- **Too many images**
+  - Error: `Max 10 images allowed, got N`
+  - Fix: reduce to 10 or fewer images.
+
+- **Invalid timestamp**
+  - Error: `Invalid start timestamp: X`
+  - Fix: use format `M:SS` (e.g., `0:00`, `1:30`, `2:15`).
+
 - **Appears slow before audio starts**
-  - The API may stream text/events before audio chunks arrive.
+  - The API streams text/metadata events before audio chunks arrive.
   - This is expected; stream event counters should still move.
 
 - **No audio data received**
@@ -135,3 +287,4 @@ When complete, both rows end with checkmarks, followed by saved file logs.
 
 - Keep `.env` private.
 - Never commit real API keys.
+- Generated audio and lyrics files are ignored by `.gitignore` by default.
