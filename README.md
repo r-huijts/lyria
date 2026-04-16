@@ -1,19 +1,24 @@
 # Lyria Song Generator
 
-A small Python CLI tool that generates a song using the Lyria model via Portkey/OpenRouter, saves the audio to disk, and prints the returned transcript/lyrics.
+A Python CLI tool for generating songs with Google Lyria through Portkey/OpenRouter.
 
-## What This Project Does
+It supports both freeform prompting and a structured song-spec workflow, streams generation progress in a Rich terminal UI, saves audio to an `.mp3`, and saves lyrics/transcript to a matching `.txt` file.
 
-- Sends your prompt to the Lyria model
-- Streams response events from the API
-- Shows live progress in the terminal using Rich
-- Collects streamed audio chunks and writes an `.mp3` file
-- Prints transcript/lyrics (when provided)
+## Features
+
+- Freeform mode for quick prompt-based generation
+- Structured mode with guided fields (`genre`, `mood`, `BPM`, `instrumentation`, etc.)
+- Prompt builder (`SongSpec` -> `build_lyria_prompt`) for better Lyria-ready prompts
+- Live stream progress with separate status for stream events and audio payload
+- Automatic output saving:
+  - audio: `your-file.mp3`
+  - lyrics/transcript: `your-file.txt`
+- `.env`-based API key loading (`PORTKEY_API_KEY`)
 
 ## Requirements
 
-- Python 3.10+ (recommended)
-- A Portkey API key with access to this model
+- Python 3.10+
+- A valid Portkey API key with access to the Lyria model
 
 ## Setup
 
@@ -36,53 +41,97 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Then edit `.env` and set your real key:
+Then edit `.env`:
 
 ```bash
 PORTKEY_API_KEY=your_real_key_here
 ```
 
-## Run the Script
+## Run
 
 ```bash
 python lyria.py
 ```
 
-The script will ask for:
+### Interactive flow
 
-- **Song prompt** (press Enter to use default prompt)
-- **Output file name** (default: `song.mp3`)
+On launch, you can choose:
 
-## Example Usage
+- `1` Freeform - type one prompt directly
+- `2` Structured - fill guided fields that are converted into a high-quality Lyria prompt
 
-```text
-Song prompt (press Enter for default): Dreamy synthwave with airy vocals and uplifting chorus
-Output file (default: song.mp3): neon-dream.mp3
+You'll also set an output file name (default: `song.mp3`).
+
+Before generation starts, the tool prints:
+
+- A prompt preview panel
+- A "Starting generation" line with target output paths for audio and lyrics
+
+## Output files
+
+If your output file is `song.mp3`, the tool writes:
+
+- `song.mp3` - generated audio
+- `song.txt` - lyrics/transcript text (when text is returned)
+
+## Prompt building API
+
+The script includes these reusable pieces:
+
+- `SongSpec` dataclass - structured prompt inputs
+- `build_lyria_prompt(spec: SongSpec) -> str` - builds a natural multi-line Lyria prompt
+- `generate_song_from_spec(spec: SongSpec, output_file: str = "song.mp3") -> str`
+
+### Example (programmatic)
+
+```python
+from lyria import SongSpec, build_lyria_prompt, generate_song_from_spec
+
+spec = SongSpec(
+    genre="cinematic",
+    subgenre="synth-pop",
+    mood="uplifting, emotional, expansive",
+    bpm=100,
+    vocals="expressive female lead vocal",
+    language="English",
+    instrumentation=["shimmering pads", "punchy drums", "warm bass"],
+    structure=["intro", "verse", "chorus", "bridge", "final chorus", "outro"],
+    lyrical_theme="rebuilding after a storm and finding hope again",
+)
+
+prompt = build_lyria_prompt(spec)
+print(prompt)
+
+transcript = generate_song_from_spec(spec, output_file="cinematic-pop.mp3")
 ```
 
-Output:
+## Progress view
 
-- Audio saved to your chosen file (for example, `neon-dream.mp3`)
-- Transcript/lyrics printed in terminal (if present in streamed response)
+During generation, progress rows show:
+
+- stream status (event count)
+- audio status (chunks + approximate size)
+
+When complete, both rows end with checkmarks, followed by saved file logs.
 
 ## Troubleshooting
 
-- **Missing key error**
-  - `Missing PORTKEY_API_KEY. Add it to your .env file.`
-  - Fix: add your key to `.env` and rerun.
+- **Missing key**
+  - Error: `Missing PORTKEY_API_KEY. Add it to your .env file.`
+  - Fix: set `PORTKEY_API_KEY` in `.env`.
 
 - **Unauthorized (401)**
-  - `Unauthorized (401). Check PORTKEY_API_KEY in your .env file.`
-  - Fix: verify key is valid and has permission for this model.
+  - Error: `Unauthorized (401). Check PORTKEY_API_KEY in your .env file.`
+  - Fix: verify key value and account/model access.
 
-- **Slow or timeout behavior**
-  - The API may stream non-audio events before audio arrives.
-  - You should still see event counters moving in the progress display.
+- **Appears slow before audio starts**
+  - The API may stream text/events before audio chunks arrive.
+  - This is expected; stream event counters should still move.
 
 - **No audio data received**
-  - If stream events are received but audio is missing, retry with a clearer prompt or verify model/account access.
+  - Retry with a clearer prompt and confirm model access permissions.
 
-## Notes
+## Security note
 
-- Keep `.env` private and never commit real keys.
-- Generated audio files are ignored by `.gitignore` by default.
+- Keep `.env` private.
+- Never commit real API keys.
